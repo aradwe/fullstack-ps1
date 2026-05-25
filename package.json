@@ -1,0 +1,12 @@
+{
+  "name": "ps1-http-server",
+  "version": "0.1.0",
+  "description": "Creative HTTP server framework built with Node.js net module",
+  "type": "module",
+  "scripts": {
+    "start": "node examples/demo-server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
