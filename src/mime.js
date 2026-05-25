@@ -1,5 +1,6 @@
 import path from 'path';
 
+// Used when serving static files
 const MIME_TYPES = {
   '.html': 'text/html',
   '.css': 'text/css',
