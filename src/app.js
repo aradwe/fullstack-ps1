@@ -49,7 +49,11 @@ export function createApp() {
     }
 
     try {
-      handler(req, res, () => runMiddleware(index + 1, req, res));
+      const reqForMiddleware = mountPath
+        ? { ...req, path: req.path.slice(mountPath.length) || '/' }
+        : req;
+
+      handler(reqForMiddleware, res, () => runMiddleware(index + 1, req, res));
     } catch (err) {
       console.error('Middleware error:', err);
       res.status(500).json({ error: 'Internal Server Error' });

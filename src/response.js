@@ -1,4 +1,6 @@
 import { getStatusText } from './statusCodes.js';
+import fs from 'fs';
+import { getMimeType } from './mime.js';
 
 // Builds an Express-style res object for a single TCP connection.
 // One request per connection for now (Connection: close).
@@ -61,6 +63,29 @@ export function createResponse(socket) {
     html(content) {
       headers['Content-Type'] = 'text/html; charset=utf-8';
       buildAndSend(String(content));
+    },
+
+    sendFile(filePath, stats) {
+      if (sent) {
+        return;
+      }
+      sent = true;
+
+      const mimeType = getMimeType(filePath);
+      const responseHeaders = {
+        'Content-Type': mimeType,
+        'Content-Length': stats.size,
+        Connection: 'close',
+      };
+
+      let response = `HTTP/1.1 ${statusCode} ${statusText}\r\n`;
+      for (const [key, value] of Object.entries(responseHeaders)) {
+        response += `${key}: ${value}\r\n`;
+      }
+      response += '\r\n';
+
+      socket.write(response);
+      fs.createReadStream(filePath).pipe(socket);
     },
 
     end() {
