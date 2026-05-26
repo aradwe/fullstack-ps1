@@ -1,19 +1,92 @@
 import { createRouter } from './router.js';
 import { createNetServer } from './server.js';
 
+function createGroupApp(groupRouter) {
+  return {
+    get(path, handler) {
+      groupRouter.get(path, handler);
+    },
+    post(path, handler) {
+      groupRouter.post(path, handler);
+    },
+    put(path, handler) {
+      groupRouter.put(path, handler);
+    },
+    delete(path, handler) {
+      groupRouter.delete(path, handler);
+    },
+    patch(path, handler) {
+      groupRouter.patch(path, handler);
+    },
+  };
+}
+
+function parseUseArgs(args) {
+  let mountPath = null;
+  let name = null;
+  let handlers = [];
+
+  if (args.length === 0) {
+    return { mountPath, name, handlers };
+  }
+
+  if (typeof args[0] === 'function') {
+    handlers = [args[0]];
+    return { mountPath, name, handlers };
+  }
+
+  if (typeof args[0] !== 'string') {
+    return { mountPath, name, handlers };
+  }
+
+  if (args.length === 2 && typeof args[1] === 'function') {
+    if (args[0].startsWith('/')) {
+      mountPath = args[0];
+      handlers = [args[1]];
+    } else {
+      name = args[0];
+      handlers = [args[1]];
+    }
+    return { mountPath, name, handlers };
+  }
+
+  if (args.length >= 3 && typeof args[1] === 'string' && typeof args[2] === 'function') {
+    mountPath = args[0];
+    name = args[1];
+    handlers = [args[2]];
+    return { mountPath, name, handlers };
+  }
+
+  return { mountPath, name, handlers };
+}
+
 export function createApp() {
   const router = createRouter();
   const middlewareStack = [];
 
-  function use(mountPathOrHandler, ...handlers) {
-    if (typeof mountPathOrHandler === 'function') {
-      middlewareStack.push({ mountPath: null, handler: mountPathOrHandler });
+  function use(...args) {
+    const { mountPath, name, handlers } = parseUseArgs(args);
+
+    for (const handler of handlers) {
+      middlewareStack.push({ mountPath, name, handler });
+    }
+  }
+
+  function getRouteManifest() {
+    return router.listRoutes();
+  }
+
+  function printRouteTable() {
+    const routes = getRouteManifest();
+
+    if (routes.length === 0) {
+      console.log('Registered routes: (none)');
       return;
     }
 
-    const mountPath = mountPathOrHandler;
-    for (const handler of handlers) {
-      middlewareStack.push({ mountPath, handler });
+    console.log('Registered routes:');
+    for (const route of routes) {
+      console.log(`  ${route.method.padEnd(6)} ${route.path}`);
     }
   }
 
@@ -41,12 +114,15 @@ export function createApp() {
       return;
     }
 
-    const { mountPath, handler } = middlewareStack[index];
+    const { mountPath, name, handler } = middlewareStack[index];
 
     if (mountPath && !req.path.startsWith(mountPath)) {
       runMiddleware(index + 1, req, res);
       return;
     }
+
+    req._middlewareChain = req._middlewareChain || [];
+    req._middlewareChain.push(name || mountPath || 'anonymous');
 
     try {
       const reqForMiddleware = mountPath
@@ -64,13 +140,26 @@ export function createApp() {
     runMiddleware(0, req, res);
   }
 
+  function group(prefix, callback) {
+    const groupRouter = createRouter();
+    callback(createGroupApp(groupRouter));
+    router.mount(prefix, groupRouter);
+  }
+
   function listen(port, callback) {
+    router.get('/__routes', (req, res) => {
+      res.json({ routes: getRouteManifest() });
+    });
+
+    printRouteTable();
+
     const server = createNetServer(handle);
     server.listen(port, callback);
   }
 
   return {
     use,
+    group,
     get(path, handler) {
       router.get(path, handler);
     },
@@ -86,6 +175,7 @@ export function createApp() {
     patch(path, handler) {
       router.patch(path, handler);
     },
+    getRouteManifest,
     handle,
     listen,
   };

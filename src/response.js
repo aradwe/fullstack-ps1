@@ -9,6 +9,20 @@ export function createResponse(socket) {
   let statusText = 'OK';
   const headers = {};
   let sent = false;
+  let timingStart = null;
+  const finishCallbacks = [];
+
+  function invokeFinish() {
+    for (const fn of finishCallbacks) {
+      fn(statusCode);
+    }
+  }
+
+  function applyTimingHeader(responseHeaders) {
+    if (timingStart !== null) {
+      responseHeaders['X-Response-Time'] = `${Date.now() - timingStart}ms`;
+    }
+  }
 
   // Serializes headers + body into HTTP/1.1 and closes the socket.
   function buildAndSend(body) {
@@ -18,6 +32,7 @@ export function createResponse(socket) {
     sent = true;
 
     const responseHeaders = { ...headers, Connection: 'close' };
+    applyTimingHeader(responseHeaders);
 
     // Byte length, not string length — matters for non-ASCII bodies
     if (body !== undefined && body !== null && body !== '') {
@@ -36,6 +51,7 @@ export function createResponse(socket) {
     }
 
     socket.end(response);
+    invokeFinish();
   }
 
   return {
@@ -47,6 +63,16 @@ export function createResponse(socket) {
 
     set(key, value) {
       headers[key] = value;
+      return this;
+    },
+
+    setTimingStart(start) {
+      timingStart = start;
+      return this;
+    },
+
+    onFinish(callback) {
+      finishCallbacks.push(callback);
       return this;
     },
 
@@ -65,6 +91,13 @@ export function createResponse(socket) {
       buildAndSend(String(content));
     },
 
+    redirect(url, code = 302) {
+      headers['Location'] = url;
+      statusCode = code;
+      statusText = getStatusText(code);
+      buildAndSend('');
+    },
+
     sendFile(filePath, stats) {
       if (sent) {
         return;
@@ -77,6 +110,7 @@ export function createResponse(socket) {
         'Content-Length': stats.size,
         Connection: 'close',
       };
+      applyTimingHeader(responseHeaders);
 
       let response = `HTTP/1.1 ${statusCode} ${statusText}\r\n`;
       for (const [key, value] of Object.entries(responseHeaders)) {
@@ -85,7 +119,11 @@ export function createResponse(socket) {
       response += '\r\n';
 
       socket.write(response);
-      fs.createReadStream(filePath).pipe(socket);
+
+      const stream = fs.createReadStream(filePath);
+      stream.on('end', invokeFinish);
+      stream.on('error', invokeFinish);
+      stream.pipe(socket);
     },
 
     end() {

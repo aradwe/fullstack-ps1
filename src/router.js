@@ -43,6 +43,18 @@ export function createRouter() {
     return null;
   }
 
+  function listRoutes() {
+    const manifest = [];
+
+    for (const method of HTTP_METHODS) {
+      for (const route of routes[method]) {
+        manifest.push({ method, path: route.path });
+      }
+    }
+
+    return manifest;
+  }
+
   return {
     get(path, handler) {
       addRoute('GET', path, handler);
@@ -66,6 +78,10 @@ export function createRouter() {
 
     match(method, path) {
       return matchRoute(method, path);
+    },
+
+    listRoutes() {
+      return listRoutes();
     },
 
     // Prefix all routes from a sub-router (for app.group in step 11)
