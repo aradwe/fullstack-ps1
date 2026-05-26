@@ -3,15 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PS1 HTTP Server</title>
+  <title>PS1 HTTP Server Demo</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <main>
-    <h1>Creative HTTP Server</h1>
-    <p>Static files served from <code>public/</code> via your <code>net</code> framework.</p>
-    <button id="hello-btn">Fetch /api/hello</button>
-    <pre id="output"></pre>
+    <h1>NetFrame Demo</h1>
+    <p>HTTP server built from scratch with Node.js <code>net</code> — static files, routing, and JSON API.</p>
+
+    <section>
+      <h2>GET /api/hello</h2>
+      <button id="hello-btn" type="button">Fetch hello</button>
+    </section>
+
+    <section>
+      <h2>POST /api/users</h2>
+      <form id="user-form">
+        <label>
+          Name
+          <input id="name" name="name" type="text" value="Alice" required>
+        </label>
+        <label>
+          Email
+          <input id="email" name="email" type="email" value="alice@example.com" required>
+        </label>
+        <button type="submit">Create user</button>
+      </form>
+    </section>
+
+    <pre id="output">Click a button or submit the form.</pre>
   </main>
   <script src="/static/app.js"></script>
 </body>
