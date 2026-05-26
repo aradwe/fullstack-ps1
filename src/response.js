@@ -58,6 +58,11 @@ export function createResponse(socket) {
       buildAndSend(JSON.stringify(data));
     },
 
+    html(content) {
+      headers['Content-Type'] = 'text/html; charset=utf-8';
+      buildAndSend(String(content));
+    },
+
     end() {
       buildAndSend('');
     },
